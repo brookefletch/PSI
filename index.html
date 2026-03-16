@@ -354,7 +354,7 @@ async function runAnalysis(){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        model:'claude-sonnet-4-6',max_tokens:8000,
+        model:'claude-sonnet-4-6',max_tokens:16000,
         tools:[{type:'web_search_20250305',name:'web_search'}],
         system:'You are a senior product and technology strategist specializing in competitive intelligence for the testing, credentialing, and licensure industry. Your PRIMARY lens is TECHNOLOGY IMPACT AND DISRUPTION. PSI Exams (psiexams.com) and ETS (ets.org) are DISTINCT entities. Use web search for real, current information. Track every source URL. Respond ONLY with a valid JSON object — no markdown fences, no preamble, no trailing text.',
         messages:[{role:'user',content:buildPrompt(market,comps,focus,qs)}]
