@@ -1,7 +1,8 @@
 import express from "express";
 import fetch from "node-fetch";
 import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { dirname } from "path";
+import { Readable } from "stream";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -26,13 +27,19 @@ app.post("/api/analyze", async (req, res) => {
       body: JSON.stringify(req.body),
     });
 
-    const data = await upstream.json();
-
-    if (!upstream.ok) {
-      console.error(`Anthropic error ${upstream.status}:`, JSON.stringify(data));
+    if (req.body.stream && upstream.ok) {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.status(200);
+      Readable.fromWeb(upstream.body).pipe(res);
+    } else {
+      const data = await upstream.json();
+      if (!upstream.ok) {
+        console.error(`Anthropic error ${upstream.status}:`, JSON.stringify(data));
+      }
+      res.status(upstream.status).json(data);
     }
-
-    res.status(upstream.status).json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

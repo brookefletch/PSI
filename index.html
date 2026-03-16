@@ -354,8 +354,8 @@ async function runAnalysis(){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        model:'claude-sonnet-4-6',max_tokens:16000,
-        tools:[{type:'web_search_20250305',name:'web_search'}],
+        model:'claude-sonnet-4-6',max_tokens:16000,stream:true,
+        tools:[{type:'web_search_20250305',name:'web_search',max_uses:5}],
         system:'You are a senior product and technology strategist specializing in competitive intelligence for the testing, credentialing, and licensure industry. Your PRIMARY lens is TECHNOLOGY IMPACT AND DISRUPTION. PSI Exams (psiexams.com) and ETS (ets.org) are DISTINCT entities. Use web search for real, current information. Track every source URL. Respond ONLY with a valid JSON object — no markdown fences, no preamble, no trailing text.',
         messages:[{role:'user',content:buildPrompt(market,comps,focus,qs)}]
       })
@@ -365,11 +365,32 @@ async function runAnalysis(){
       const msg=e?.error?.message||e?.error||(typeof e==='string'?e:null)||`Server error ${resp.status}`;
       throw new Error(typeof msg==='string'?msg:JSON.stringify(msg));
     }
-    const data=await resp.json();clearInterval(iv);
-    if(data.stop_reason==='max_tokens')throw new Error('Response was cut off (max tokens reached). Try reducing focus areas and running again.');
-    const tb=data.content?.findLast(b=>b.type==='text');
-    if(!tb)throw new Error('No text response from model.');
-    let raw=tb.text.trim().replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/\s*```$/i,'');
+    // Stream SSE events and accumulate text blocks by index
+    const reader=resp.body.getReader();
+    const dec=new TextDecoder();
+    let buf='',blocks={},curIdx=-1,stopReason=null;
+    outer:while(true){
+      const{done,value}=await reader.read();
+      if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n');
+      buf=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: '))continue;
+        const chunk=line.slice(6).trim();
+        if(!chunk)continue;
+        let ev;try{ev=JSON.parse(chunk);}catch{continue;}
+        if(ev.type==='content_block_start'){curIdx=ev.index;if(ev.content_block?.type==='text')blocks[curIdx]='';}
+        if(ev.type==='content_block_delta'&&ev.delta?.type==='text_delta'&&blocks[curIdx]!==undefined)blocks[curIdx]+=ev.delta.text;
+        if(ev.type==='message_delta'&&ev.delta?.stop_reason)stopReason=ev.delta.stop_reason;
+        if(ev.type==='message_stop')break outer;
+      }
+    }
+    clearInterval(iv);
+    if(stopReason==='max_tokens')throw new Error('Response was cut off (max tokens reached). Try reducing focus areas and running again.');
+    const textBlocks=Object.values(blocks);
+    if(!textBlocks.length)throw new Error('No text response from model.');
+    let raw=textBlocks[textBlocks.length-1].trim().replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/\s*```$/i,'');
     AD=safeJSON(raw);render(AD,market);
   }catch(e){
     clearInterval(iv);showErr('Analysis failed: '+e.message);
