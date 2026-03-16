@@ -366,7 +366,8 @@ async function runAnalysis(){
       throw new Error(typeof msg==='string'?msg:JSON.stringify(msg));
     }
     const data=await resp.json();clearInterval(iv);
-    const tb=data.content?.find(b=>b.type==='text');
+    if(data.stop_reason==='max_tokens')throw new Error('Response was cut off (max tokens reached). Try reducing focus areas and running again.');
+    const tb=data.content?.findLast(b=>b.type==='text');
     if(!tb)throw new Error('No text response from model.');
     let raw=tb.text.trim().replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/\s*```$/i,'');
     AD=safeJSON(raw);render(AD,market);
