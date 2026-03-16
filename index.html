@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PSI & ETS — Competitive Analysis Agent</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --surface2: #f2f1ee;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.18);
+    --text: #1a1a18;
+    --text2: #5a5a56;
+    --text3: #8a8a84;
+    --psi: #1a56a0;
+    --psi-bg: #e8f0fb;
+    --psi-border: #b3ccf0;
+    --ets: #2d7a3a;
+    --ets-bg: #e6f4e8;
+    --ets-border: #a8d8ae;
+    --amber: #92560a;
+    --amber-bg: #fef3e2;
+    --amber-border: #f5c97a;
+    --purple: #5b3fb5;
+    --purple-bg: #f0ecfd;
+    --purple-border: #c4b5f4;
+    --success-bg: #e8f5ea;
+    --success-text: #1e6b2e;
+    --danger-bg: #fdecea;
+    --danger-text: #9b2020;
+    --warn-bg: #fff8e6;
+    --warn-text: #7a4f0a;
+    --info-bg: #e8f0fb;
+    --info-text: #1a4a8a;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .container { max-width: 960px; margin: 0 auto; }
+
+  /* Header */
+  .app-header { margin-bottom: 2rem; }
+  .app-header h1 {
+    font-size: 28px;
+    font-weight: normal;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+    font-family: 'Georgia', serif;
+  }
+  .app-header p { font-size: 15px; color: var(--text2); font-family: Arial, sans-serif; }
+
+  .entity-strip {
+    display: flex; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center;
+  }
+  .entity-pill {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 14px; border-radius: 99px;
+    font-family: Arial, sans-serif; font-size: 13px; font-weight: 600;
+    border: 1.5px solid;
+  }
+  .entity-pill.psi { background: var(--psi-bg); border-color: var(--psi-border); color: var(--psi); }
+  .entity-pill.ets { background: var(--ets-bg); border-color: var(--ets-border); color: var(--ets); }
+  .entity-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .acq-tag {
+    font-family: Arial, sans-serif; font-size: 12px; color: var(--amber);
+    background: var(--amber-bg); border: 1px solid var(--amber-border);
+    padding: 5px 11px; border-radius: 99px;
+  }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .card-title {
+    font-family: Arial, sans-serif;
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--text3); margin-bottom: 1rem;
+  }
+
+  /* API key section */
+  .apikey-row { display: flex; gap: 10px; align-items: center; }
+  .apikey-row input { flex: 1; }
+  .apikey-note { font-family: Arial, sans-serif; font-size: 12px; color: var(--text3); margin-top: 6px; }
+  .apikey-note a { color: var(--psi); }
+
+  /* Form */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label {
+    font-family: Arial, sans-serif;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text3);
+  }
+  input[type="text"], input[type="password"], textarea {
+    width: 100%;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    font-size: 14px; font-family: Arial, sans-serif;
+    background: var(--surface2);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus, textarea:focus { border-color: var(--psi); background: #fff; }
+  textarea { resize: vertical; min-height: 80px; }
+  .locked-field {
+    padding: 9px 12px; font-size: 14px; font-family: Arial, sans-serif;
+    border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text3);
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* Focus chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border-radius: 99px;
+    border: 1px solid var(--border2); font-size: 13px;
+    font-family: Arial, sans-serif; cursor: pointer;
+    background: var(--surface2); color: var(--text2);
+    user-select: none; transition: all 0.12s;
+  }
+  .chip.active { background: var(--info-bg); color: var(--info-text); border-color: #90b4e8; }
+  .chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Run button */
+  .run-btn {
+    width: 100%; padding: 12px; font-size: 16px;
+    font-family: 'Georgia', serif;
+    background: var(--text); color: #fff;
+    border: none; border-radius: var(--radius-sm);
+    cursor: pointer; transition: opacity 0.15s;
+    margin-top: 6px; letter-spacing: 0.2px;
+  }
+  .run-btn:hover { opacity: 0.85; }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Status */
+  .status-bar {
+    display: none; align-items: center; gap: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    font-family: Arial, sans-serif; font-size: 13px; color: var(--text2);
+    margin-bottom: 1rem;
+  }
+  .status-bar.visible { display: flex; }
+  .spinner {
+    width: 14px; height: 14px; flex-shrink: 0;
+    border: 2px solid var(--border2); border-top-color: var(--text);
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box {
+    display: none; background: var(--danger-bg); border: 1px solid #f5b0b0;
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    font-family: Arial, sans-serif; font-size: 14px; color: var(--danger-text);
+    margin-bottom: 1rem;
+  }
+  .error-box.visible { display: block; }
+
+  /* Results */
+  .results { display: none; }
+  .results.visible { display: block; }
+
+  .result-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 1.25rem; gap: 12px;
+  }
+  .result-title { font-size: 22px; font-weight: normal; letter-spacing: -0.3px; }
+  .result-sub { font-family: Arial, sans-serif; font-size: 13px; color: var(--text3); margin-top: 3px; }
+  .export-btn {
+    padding: 8px 18px; font-size: 13px; font-family: Arial, sans-serif;
+    border: 1px solid var(--border2); border-radius: var(--radius-sm);
+    background: transparent; color: var(--text); cursor: pointer; flex-shrink: 0;
+  }
+  .export-btn:hover { background: var(--surface2); }
+
+  /* Entity overview */
+  .entity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+  .entity-card { padding: 1rem 1.25rem; border-radius: var(--radius-sm); }
+  .entity-card.psi { background: var(--psi-bg); border: 1px solid var(--psi-border); }
+  .entity-card.ets { background: var(--ets-bg); border: 1px solid var(--ets-border); }
+  .entity-label { font-family: Arial, sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+  .entity-card.psi .entity-label { color: var(--psi); }
+  .entity-card.ets .entity-label { color: var(--ets); }
+  .entity-name { font-size: 15px; font-weight: bold; margin-bottom: 5px; }
+  .entity-card.psi .entity-name { color: #0d3d78; }
+  .entity-card.ets .entity-name { color: #1a5224; }
+  .entity-desc { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.6; }
+  .entity-card.psi .entity-desc { color: #2a5ea8; }
+  .entity-card.ets .entity-desc { color: #256632; }
+
+  .overview-text { font-size: 15px; line-height: 1.8; color: var(--text); }
+
+  /* Dual profile */
+  .dual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .profile-card {
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 1rem 1.25rem; background: var(--surface2);
+  }
+  .profile-card.psi-card { border-top: 3px solid var(--psi); }
+  .profile-card.ets-card { border-top: 3px solid var(--ets); }
+  .profile-name { font-size: 16px; font-weight: bold; margin-bottom: 3px; font-family: Arial, sans-serif; }
+  .profile-tagline { font-size: 13px; color: var(--text2); font-family: Arial, sans-serif; margin-bottom: 10px; font-style: italic; }
+  .profile-row { display: flex; gap: 8px; margin-bottom: 7px; }
+  .profile-label { font-family: Arial, sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text3); min-width: 58px; padding-top: 2px; flex-shrink: 0; }
+  .profile-val { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5; }
+
+  /* Tags */
+  .tag-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag { font-family: Arial, sans-serif; font-size: 11px; padding: 2px 9px; border-radius: 99px; }
+  .tag.str { background: var(--success-bg); color: var(--success-text); }
+  .tag.weak { background: var(--danger-bg); color: var(--danger-text); }
+
+  /* Competitor cards */
+  .comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .comp-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; background: var(--surface2); }
+  .comp-name { font-size: 15px; font-weight: bold; font-family: Arial, sans-serif; margin-bottom: 3px; }
+  .comp-tagline { font-size: 13px; color: var(--text2); font-family: Arial, sans-serif; font-style: italic; margin-bottom: 10px; }
+  .comp-row { display: flex; gap: 8px; margin-bottom: 6px; }
+  .comp-label { font-family: Arial, sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text3); min-width: 52px; flex-shrink: 0; padding-top: 2px; }
+  .comp-val { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5; }
+
+  /* Matrix */
+  .matrix-wrap { overflow-x: auto; }
+  .matrix-table { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 13px; }
+  .matrix-table th { text-align: left; padding: 7px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text3); border-bottom: 2px solid var(--border2); }
+  .matrix-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .matrix-table tr:last-child td { border-bottom: none; }
+  .row-psi td:first-child { color: var(--psi); font-weight: 700; }
+  .row-ets td:first-child { color: var(--ets); font-weight: 700; }
+  .row-divider td { border-top: 2px solid var(--border2) !important; }
+  .pips { display: inline-flex; gap: 3px; align-items: center; }
+  .pip { width: 9px; height: 9px; border-radius: 50%; background: var(--border2); }
+  .pip.on { background: var(--text); }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+  .pill-h { background: var(--success-bg); color: var(--success-text); }
+  .pill-m { background: var(--warn-bg); color: var(--warn-text); }
+  .pill-l { background: var(--danger-bg); color: var(--danger-text); }
+
+  /* Insights */
+  .insight-list { display: flex; flex-direction: column; gap: 10px; }
+  .insight-item { padding: 11px 14px; border-radius: var(--radius-sm); border-left: 3px solid; }
+  .insight-item.opportunity { background: var(--success-bg); border-color: #2d7a3a; }
+  .insight-item.threat { background: var(--danger-bg); border-color: #9b2020; }
+  .insight-item.gap { background: var(--info-bg); border-color: #1a56a0; }
+  .insight-type { font-family: Arial, sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; opacity: 0.7; }
+  .insight-text { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.55; }
+
+  /* Patterns */
+  .pattern-item { padding: 1rem 1.25rem; border-radius: var(--radius-sm); margin-bottom: 10px; }
+  .pattern-item.comp-only { background: var(--amber-bg); border: 1px solid var(--amber-border); }
+  .pattern-item.crossover { background: var(--purple-bg); border: 1px solid var(--purple-border); }
+  .pattern-label { font-family: Arial, sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+  .pattern-item.comp-only .pattern-label { color: var(--amber); }
+  .pattern-item.crossover .pattern-label { color: var(--purple); }
+  .pattern-title { font-size: 14px; font-weight: bold; font-family: Arial, sans-serif; margin-bottom: 5px; }
+  .pattern-item.comp-only .pattern-title { color: #6b3d08; }
+  .pattern-item.crossover .pattern-title { color: #3d2888; }
+  .pattern-text { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.6; }
+  .pattern-item.comp-only .pattern-text { color: #7a4a10; }
+  .pattern-item.crossover .pattern-text { color: #4a3290; }
+
+  /* Recommendations */
+  .strat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .strat-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; background: var(--surface2); }
+  .strat-for { font-family: Arial, sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .strat-for.psi-for { color: var(--psi); }
+  .strat-for.ets-for { color: var(--ets); }
+  .strat-for.both-for { color: var(--purple); }
+  .strat-num { font-size: 22px; font-family: 'Georgia', serif; color: var(--text3); margin-bottom: 4px; }
+  .strat-text { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.55; }
+
+  /* Questions */
+  .qa-item { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+  .qa-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .qa-q { font-size: 14px; font-weight: bold; font-family: Arial, sans-serif; margin-bottom: 6px; }
+  .qa-a { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.7; }
+
+  /* Sources */
+  .cred-legend { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+  .cred-legend span { font-family: Arial, sans-serif; font-size: 12px; color: var(--text2); display: flex; align-items: center; gap: 5px; }
+  .cred-badge { font-family: Arial, sans-serif; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+  .cred-h { background: var(--success-bg); color: var(--success-text); }
+  .cred-m { background: var(--warn-bg); color: var(--warn-text); }
+  .cred-l { background: var(--danger-bg); color: var(--danger-text); }
+  .source-list { display: flex; flex-direction: column; gap: 8px; }
+  .source-item { display: flex; gap: 12px; padding: 11px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface2); }
+  .source-cred-col { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .cred-stars { display: flex; gap: 2px; }
+  .cred-star { width: 8px; height: 8px; border-radius: 50%; background: var(--border2); }
+  .cred-star.lit { background: var(--text2); }
+  .source-body { flex: 1; min-width: 0; }
+  .source-title { font-family: Arial, sans-serif; font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .source-meta { font-family: Arial, sans-serif; font-size: 12px; color: var(--text3); margin-bottom: 3px; }
+  .source-why { font-family: Arial, sans-serif; font-size: 12px; color: var(--text2); font-style: italic; margin-bottom: 4px; }
+  .source-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+  .source-tag { font-family: Arial, sans-serif; font-size: 11px; padding: 2px 7px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); color: var(--text3); }
+  .source-link { font-family: Arial, sans-serif; font-size: 12px; color: var(--psi); text-decoration: none; word-break: break-all; }
+  .source-link:hover { text-decoration: underline; }
+
+  /* Cite superscripts */
+  .cite {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--info-bg); color: var(--info-text);
+    font-family: Arial, sans-serif; font-size: 10px; font-weight: 700;
+    cursor: pointer; vertical-align: super; margin-left: 2px;
+    text-decoration: none;
+  }
+  .cite:hover { opacity: 0.7; }
+
+  @media (max-width: 600px) {
+    .form-grid, .entity-grid, .dual-grid { grid-template-columns: 1fr; }
+    .result-header { flex-direction: column; }
+  }
+
+  /* Tech opportunity cards */
+  .tech-opp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+  .tech-opp-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; background: var(--surface2); display: flex; flex-direction: column; gap: 7px; }
+  .tech-opp-name { font-family: Arial, sans-serif; font-size: 14px; font-weight: 700; }
+  .tech-opp-meta { display: flex; gap: 5px; flex-wrap: wrap; }
+  .tech-badge { font-family: Arial, sans-serif; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+  .badge-emerging { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+  .badge-growing { background: var(--info-bg); color: var(--psi); }
+  .badge-mature { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
+  .badge-disrupt-high { background: var(--danger-bg); color: var(--danger-text); }
+  .badge-disrupt-med { background: var(--warn-bg); color: var(--warn-text); }
+  .badge-disrupt-low { background: var(--success-bg); color: var(--success-text); }
+  .badge-now { background: var(--danger-bg); color: var(--danger-text); }
+  .badge-near { background: var(--warn-bg); color: var(--warn-text); }
+  .badge-far { background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
+  .tech-opp-advantage { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5; color: var(--text); }
+  .tech-opp-adoption { font-family: Arial, sans-serif; font-size: 12px; color: var(--text3); font-style: italic; }
+
+  /* Disruption scenarios */
+  .disruption-list { display: flex; flex-direction: column; gap: 12px; }
+  .disruption-card { border: 1px solid var(--purple-border); border-radius: var(--radius-sm); padding: 1rem 1.25rem; background: var(--purple-bg); }
+  .disruption-title { font-family: Arial, sans-serif; font-size: 14px; font-weight: 700; color: var(--purple); margin-bottom: 5px; }
+  .disruption-desc { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.6; color: #3d2888; margin-bottom: 8px; }
+  .disruption-caps { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+  .disruption-cap { font-family: Arial, sans-serif; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--surface); border: 1px solid var(--purple-border); color: var(--purple); }
+  .disruption-signal-row { font-family: Arial, sans-serif; font-size: 12px; color: #534AB7; }
+  .disruption-signal-row strong { font-weight: 700; font-style: normal; }
+
+  /* Disruption readiness on profiles */
+  .readiness-badge { display: inline-flex; align-items: center; font-family: Arial, sans-serif; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; margin-top: 6px; }
+  .readiness-high { background: var(--success-bg); color: var(--success-text); }
+  .readiness-medium { background: var(--warn-bg); color: var(--warn-text); }
+  .readiness-low { background: var(--danger-bg); color: var(--danger-text); }
+
+  /* Recommendation type label */
+  .rec-type { font-family: Arial, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 7px; border-radius: 99px; display: inline-block; margin-bottom: 4px; }
+  .rec-differentiator { background: var(--info-bg); color: var(--info-text); }
+  .rec-disruptor { background: var(--purple-bg); color: var(--purple); }
+  .rec-defensive { background: var(--warn-bg); color: var(--warn-text); }
+</head>
+<body>
+<div class="container">
+
+  <div id="fileBanner" style="display:none;background:#fef3e2;border:1px solid #f5c97a;border-radius:8px;padding:14px 18px;margin-bottom:1.5rem;font-family:Arial,sans-serif;">
+    <div style="font-size:13px;font-weight:700;color:#92560a;margin-bottom:6px;">⚠ Opened as a file:// URL — API calls will be blocked by your browser</div>
+    <div style="font-size:13px;color:#7a4f0a;line-height:1.6;">
+      Browsers block cross-origin requests from <code style="background:#fde8c0;padding:1px 5px;border-radius:3px;">file://</code> URLs.
+      You need to serve this file over <code style="background:#fde8c0;padding:1px 5px;border-radius:3px;">http://localhost</code> instead.<br><br>
+      <strong>Quickest fix — run one of these in your terminal in the same folder as this file:</strong><br><br>
+      <code style="display:block;background:#fff8ee;border:1px solid #f5c97a;border-radius:5px;padding:8px 12px;margin-bottom:6px;font-size:12px;">python3 -m http.server 8080</code>
+      <code style="display:block;background:#fff8ee;border:1px solid #f5c97a;border-radius:5px;padding:8px 12px;margin-bottom:6px;font-size:12px;">npx serve .</code>
+      <code style="display:block;background:#fff8ee;border:1px solid #f5c97a;border-radius:5px;padding:8px 12px;font-size:12px;">npx http-server . -p 8080</code>
+      <br>Then open <strong>http://localhost:8080/psi-ets-competitive-agent.html</strong> in your browser.
+    </div>
+  </div>
+
+  <div class="app-header">
+    <h1>PSI & ETS — Competitive Analysis Agent</h1>
+    <p>Enter your Anthropic API key, configure your focus, and run a live competitive brief.</p>
+  </div>
+
+  <div class="entity-strip">
+    <div class="entity-pill psi"><span class="dot"></span>PSI Exams · psiexams.com</div>
+    <div class="entity-pill ets"><span class="dot"></span>ETS · ets.org</div>
+    <div class="acq-tag">PSI acquired by ETS — analyzed as distinct entities</div>
+  </div>
+
+  <!-- API Key -->
+  <div class="card">
+    <div class="card-title">Anthropic API Key</div>
+    <div class="apikey-row">
+      <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off" />
+    </div>
+    <div class="apikey-note">Your key is never stored or sent anywhere except directly to api.anthropic.com. Get one at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.</div>
+  </div>
+
+  <!-- Config -->
+  <div class="card">
+    <div class="card-title">Analysis configuration</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Primary entity (locked)</label>
+        <div class="locked-field">🔒 PSI Exams — psiexams.com</div>
+      </div>
+      <div class="form-group">
+        <label>Parent entity (locked)</label>
+        <div class="locked-field">🔒 ETS — ets.org</div>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Market / focus area</label>
+        <input type="text" id="market" value="professional credentialing and licensure testing" placeholder="e.g. professional licensing exams" />
+      </div>
+      <div class="form-group">
+        <label>Additional competitors (optional)</label>
+        <input type="text" id="competitors" placeholder="e.g. Pearson VUE, Prometric — or leave blank" />
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>Focus areas</label>
+      <div style="font-family:Arial,sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#8a8a84;margin-bottom:6px;margin-top:2px;">Strategic & market</div>
+      <div class="chips" id="chips">
+        <div class="chip active" data-val="Positioning & messaging"><span class="dot"></span>Positioning & messaging</div>
+        <div class="chip active" data-val="Pricing & packaging"><span class="dot"></span>Pricing & packaging</div>
+        <div class="chip active" data-val="Product features & capabilities"><span class="dot"></span>Product features</div>
+        <div class="chip active" data-val="Target segments & customer fit"><span class="dot"></span>Target segments</div>
+        <div class="chip" data-val="Go-to-market motion & sales strategy"><span class="dot"></span>Go-to-market motion</div>
+        <div class="chip" data-val="Recent moves & strategy signals"><span class="dot"></span>Recent moves & signals</div>
+        <div class="chip" data-val="Customer & candidate sentiment"><span class="dot"></span>Customer sentiment</div>
+      </div>
+      <div style="font-family:Arial,sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#8a8a84;margin-bottom:6px;margin-top:12px;">Technology & disruption</div>
+      <div class="chips">
+        <div class="chip active" data-val="AI & automation capabilities"><span class="dot"></span>AI & automation</div>
+        <div class="chip active" data-val="Online proctoring & remote delivery tech"><span class="dot"></span>Proctoring tech</div>
+        <div class="chip active" data-val="Data, analytics & psychometrics platforms"><span class="dot"></span>Data & analytics</div>
+        <div class="chip active" data-val="Digital credentialing & identity verification"><span class="dot"></span>Digital credentialing</div>
+        <div class="chip active" data-val="Adaptive & simulation-based testing"><span class="dot"></span>Adaptive & simulation</div>
+        <div class="chip" data-val="API ecosystem & integration capabilities"><span class="dot"></span>API & integrations</div>
+        <div class="chip" data-val="Mobile & accessibility innovation"><span class="dot"></span>Mobile & accessibility</div>
+        <div class="chip" data-val="Competitor technology investment signals"><span class="dot"></span>Competitor tech signals</div>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>Strategic questions (optional)</label>
+      <textarea id="questions" placeholder="e.g. Where is PSI's tech ahead of competitors? What AI investments should PSI prioritize? Where could PSI disrupt the licensure market with technology?"></textarea>
+    </div>
+    <button class="run-btn" id="runBtn" onclick="runAnalysis()">Run competitive analysis</button>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+  <div class="status-bar" id="statusBar"><div class="spinner"></div><span id="statusText">Researching...</span></div>
+
+  <div class="results" id="results">
+    <div class="result-header">
+      <div>
+        <div class="result-title" id="resultTitle"></div>
+        <div class="result-sub" id="resultSub"></div>
+      </div>
+      <button class="export-btn" onclick="exportTxt()">Export as text</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Market overview</div>
+      <div class="entity-grid" id="entityCards"></div>
+      <div class="overview-text" id="overviewText"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">PSI & ETS tech profiles</div>
+      <div class="dual-grid" id="dualGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Competitor tech profiles</div>
+      <div class="comp-grid" id="compGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Technology capability matrix</div>
+      <div class="matrix-wrap" id="matrixWrap"></div>
+    </div>
+
+    <div class="card" id="stratMatrixSection" style="display:none;">
+      <div class="card-title">Strategic & market matrix</div>
+      <div class="matrix-wrap" id="stratMatrixWrap"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Technology opportunities for PSI</div>
+      <div class="tech-opp-grid" id="techOppGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Disruption scenarios</div>
+      <div class="disruption-list" id="disruptionList"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Strategic insights</div>
+      <div class="insight-list" id="insightList"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Pattern callouts</div>
+      <div id="patternsList"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Recommended next moves</div>
+      <div class="strat-grid" id="stratGrid"></div>
+    </div>
+
+    <div class="card" id="qaSection" style="display:none;">
+      <div class="card-title">Answers to your strategic questions</div>
+      <div id="qaAnswers"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Sources & credibility</div>
+      <div class="cred-legend">
+        <span><span class="cred-badge cred-h">High</span> Official docs, verified press</span>
+        <span><span class="cred-badge cred-m">Medium</span> Industry analysis, reputable media</span>
+        <span><span class="cred-badge cred-l">Low</span> Community, forums, opinion</span>
+      </div>
+      <div class="source-list" id="sourceList"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let analysisData = null;
+
+  // Detect file:// and show the setup banner
+  if (window.location.protocol === 'file:') {
+    document.getElementById('fileBanner').style.display = 'block';
+  }
+
+  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => c.classList.toggle('active')));
+
+  const STRATEGIC_VALS = new Set([
+    'Positioning & messaging',
+    'Pricing & packaging',
+    'Product features & capabilities',
+    'Target segments & customer fit',
+    'Go-to-market motion & sales strategy',
+    'Recent moves & strategy signals',
+    'Customer & candidate sentiment'
+  ]);
+
+  function getFocus() {
+    const all = [...document.querySelectorAll('.chip.active')].map(c => c.dataset.val);
+    return {
+      strategic: all.filter(v => STRATEGIC_VALS.has(v)),
+      technology: all.filter(v => !STRATEGIC_VALS.has(v)),
+      all
+    };
+  }
+  function setStatus(m) { document.getElementById('statusText').textContent = m; }
+  function showErr(m) { const e = document.getElementById('errorBox'); e.textContent = m; e.classList.add('visible'); }
+  function credCls(c) { return c==='high'?'cred-h':c==='medium'?'cred-m':'cred-l'; }
+  function credLbl(c) { return c==='high'?'High':c==='medium'?'Medium':'Low'; }
+  function credScore(c) { return c==='high'?3:c==='medium'?2:1; }
+
+  function citeHTML(refs, sources) {
+    if (!refs?.length) return '';
+    return refs.map(id => {
+      const s = sources?.find(x => x.id === id);
+      return s ? `<a class="cite" href="#source-${id}" title="${s.title}">${id}</a>` : '';
+    }).join('');
+  }
+
+  function pips(score) {
+    let h = '<span class="pips">';
+    for (let i = 1; i <= 5; i++) h += `<span class="pip ${i<=score?'on':''}"></span>`;
+    return h + '</span>';
+  }
+
+  // Attempts standard parse first; if that fails due to truncation, tries to
+  // close all open brackets/strings so the partial JSON is still usable.
+  function safeParseJSON(raw) {
+    try {
+      return JSON.parse(raw);
+    } catch(e) {
+      // Attempt to repair a truncated JSON string
+      let s = raw;
+      // Remove any trailing incomplete key-value or comma
+      s = s.replace(/,\s*$/, '');
+      s = s.replace(/,\s*"[^"]*$/, '');   // trailing partial key
+      s = s.replace(/"[^"]*$/, '"..."');   // trailing unclosed string value
+
+      // Count open brackets and close them
+      let opens = 0, openSquare = 0, inStr = false, escape = false;
+      for (let i = 0; i < s.length; i++) {
+        const ch = s[i];
+        if (escape) { escape = false; continue; }
+        if (ch === '\\' && inStr) { escape = true; continue; }
+        if (ch === '"') { inStr = !inStr; continue; }
+        if (inStr) continue;
+        if (ch === '{') opens++;
+        else if (ch === '}') opens--;
+        else if (ch === '[') openSquare++;
+        else if (ch === ']') openSquare--;
+      }
+      // Close any open arrays first, then objects
+      for (let i = 0; i < openSquare; i++) s += ']';
+      for (let i = 0; i < opens; i++) s += '}';
+
+      try {
+        const repaired = JSON.parse(s);
+        console.warn('JSON was truncated and repaired — some sections may be incomplete.');
+        return repaired;
+      } catch(e2) {
+        throw new Error('Response JSON could not be parsed even after repair. Try running again — if the problem persists, reduce the number of focus areas selected.');
+      }
+    }
+  }
+
+  async function runAnalysis() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey) { showErr('Please enter your Anthropic API key.'); return; }
+    const market = document.getElementById('market').value.trim() || 'professional credentialing and licensure testing';
+    const competitors = document.getElementById('competitors').value.trim();
+    const focus = getFocus();
+    const questions = document.getElementById('questions').value.trim();
+
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('results').classList.remove('visible');
+    document.getElementById('errorBox').classList.remove('visible');
+    document.getElementById('statusBar').classList.add('visible');
+
+    const msgs = ['Researching PSI and the testing landscape...','Analyzing ETS positioning...','Scanning competitors in credentialing & licensure...','Mapping feature and segment overlaps...','Identifying crossover patterns...','Gathering and rating sources...','Synthesizing the brief...'];
+    let si = 0;
+    const iv = setInterval(() => { si=(si+1)%msgs.length; setStatus(msgs[si]); }, 3500);
+
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 8000,
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+          system: `You are a senior product and technology strategist specializing in competitive intelligence for the testing, credentialing, and licensure industry.
+
+Your PRIMARY lens is TECHNOLOGY IMPACT AND DISRUPTION. Every analysis must answer:
+1. Where is technology creating openings that PSI can exploit as a differentiator?
+2. Where is PSI (or ETS) positioned to be a disruptor — not just a participant — by applying technology in ways competitors have not?
+3. What technology moves are competitors making, and where are the gaps PSI can fill first?
+
+Think across: AI/ML, online proctoring innovation, adaptive testing, data & analytics platforms, identity verification, blockchain credentialing, API ecosystems, automation, simulation-based assessment, mobile-first delivery.
+
+PSI Exams (psiexams.com) and ETS (ets.org) are DISTINCT entities — treat them separately.
+Use web search to gather real, current information. Track every source URL.
+Respond ONLY with a valid JSON object — no markdown fences, no preamble, no trailing text.`,
+          messages: [{ role: 'user', content: buildPrompt(market, competitors, focus, questions) }]
+        })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `API error ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      clearInterval(iv);
+      const textBlock = data.content?.find(b => b.type === 'text');
+      if (!textBlock) throw new Error('No text response from model.');
+      let raw = textBlock.text.trim().replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/\s*```$/i,'');
+      const parsed = safeParseJSON(raw);
+      analysisData = parsed;
+      render(parsed, market);
+    } catch(err) {
+      clearInterval(iv);
+      let msg = err.message;
+      if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('fetch')) {
+        if (window.location.protocol === 'file:') {
+          msg = 'Cannot connect — this file is open as file:// which blocks API calls. Serve it via a local server instead (see the yellow banner at the top).';
+        } else {
+          msg = 'Network error — could not reach api.anthropic.com. Check your internet connection and that your API key is valid.';
+        }
+      }
+      showErr('Analysis failed: ' + msg);
+    } finally {
+      document.getElementById('statusBar').classList.remove('visible');
+      document.getElementById('runBtn').disabled = false;
+    }
+  }
+
+  function buildPrompt(market, competitors, focus, questions) {
+    const hasStrategic = focus.strategic.length > 0;
+    const hasTech = focus.technology.length > 0;
+    return `Conduct a comprehensive competitive analysis for PSI Exams (psiexams.com) AND ETS (ets.org) in the "${market}" market.
+
+CONTEXT:
+- PSI is a professional testing and credentialing technology company: licensing, certification, workforce assessments, test centers, online proctoring.
+- ETS is PSI's parent company — a nonprofit focused on educational assessments (GRE, TOEFL, Praxis) serving academic and institutional markets.
+- Treat them as DISTINCT entities with separate profiles, strategies, and competitive positions.
+- PRIMARY GOAL: Identify where TECHNOLOGY can make PSI a differentiator and potential disruptor. Surface technology gaps, emerging tech openings, and specific moves PSI can make to lead — not follow — the market.
+
+${competitors ? `Additional competitors: ${competitors}` : 'Identify top 4-5 direct competitors to PSI in the testing/credentialing space.'}
+${hasStrategic ? `Strategic & market focus areas: ${focus.strategic.join(', ')}` : ''}
+${hasTech ? `Technology & disruption focus areas: ${focus.technology.join(', ')}` : ''}
+${questions ? `Strategic questions (answer each): ${questions}` : ''}
+
+Use web search for real, current data. Track source URLs. Assign credibility: "high" (official pages, verified press), "medium" (industry analysis, reputable media), "low" (forums, opinion).
+
+Return ONLY this exact JSON schema (no markdown, no preamble):
+{
+  "psiOverview": "2-sentence PSI positioning today",
+  "etsOverview": "2-sentence ETS positioning today",
+  "marketOverview": "2-sentence overview of how technology is reshaping this market right now",
+  "psiProfile": {
+    "name": "PSI Exams",
+    "tagline": "...",
+    "segment": "...",
+    "pricing": ${hasStrategic ? '"pricing model / range"' : 'null'},
+    "positioning": ${hasStrategic ? '"1-sentence core positioning"' : 'null'},
+    "techStrengths": ["specific tech capability 1", "specific tech capability 2", "specific tech capability 3"],
+    "techGaps": ["tech gap 1", "tech gap 2"],
+    "disruptionReadiness": "high|medium|low",
+    "sourceRefs": [1]
+  },
+  "etsProfile": {
+    "name": "ETS",
+    "tagline": "...",
+    "segment": "...",
+    "pricing": ${hasStrategic ? '"pricing model / range"' : 'null'},
+    "positioning": ${hasStrategic ? '"1-sentence core positioning"' : 'null'},
+    "techStrengths": ["specific tech capability 1", "specific tech capability 2", "specific tech capability 3"],
+    "techGaps": ["tech gap 1", "tech gap 2"],
+    "disruptionReadiness": "high|medium|low",
+    "sourceRefs": [2]
+  },
+  "competitors": [{
+    "name": "...",
+    "tagline": "...",
+    "segment": "...",
+    "pricing": ${hasStrategic ? '"pricing model"' : 'null'},
+    "gtm": ${hasStrategic ? '"1-sentence go-to-market approach"' : 'null'},
+    "sentiment": ${hasStrategic ? '"1-sentence customer sentiment signal"' : 'null'},
+    "keyTech": "1-sentence most notable tech capability",
+    "techStrengths": ["s1", "s2"],
+    "techGaps": ["g1", "g2"],
+    "sourceRefs": [3]
+  }],
+  "techMatrix": {
+    "dimensions": ["AI/ML", "Proctoring Innovation", "Data & Analytics", "Digital Credentialing", "Platform Openness"],
+    "rows": [
+      { "competitor": "PSI Exams", "scores": [3,4,2,5,3], "entity": "psi" },
+      { "competitor": "ETS", "scores": [3,4,2,5,3], "entity": "ets" }
+    ]
+  },
+  ${hasStrategic ? `"strategicMatrix": {
+    "dimensions": ["Positioning Clarity", "Pricing Competitiveness", "GTM Effectiveness", "Segment Focus", "Customer Satisfaction"],
+    "rows": [
+      { "competitor": "PSI Exams", "scores": [3,4,2,5,3], "entity": "psi" },
+      { "competitor": "ETS", "scores": [3,4,2,5,3], "entity": "ets" }
+    ]
+  },` : '"strategicMatrix": null,'}
+  "techOpportunities": [
+    {
+      "technology": "Name of the technology",
+      "maturity": "emerging|growing|mature",
+      "competitorAdoption": "none|early|widespread",
+      "psiAdvantage": "Why PSI is specifically positioned to move here",
+      "disruptionPotential": "high|medium|low",
+      "timeHorizon": "now|1-2 years|3-5 years",
+      "sourceRefs": [1]
+    }
+  ],
+  "disruptionScenarios": [
+    {
+      "scenario": "Short scenario title",
+      "description": "How PSI could use technology to fundamentally change the rules of competition",
+      "requiredCapabilities": ["capability 1", "capability 2"],
+      "signalToWatch": "What early market signal would confirm this disruption is beginning",
+      "sourceRefs": [2]
+    }
+  ],
+  "insights": [
+    { "type": "opportunity|threat|gap", "appliesTo": "PSI|ETS|Both", "techAngle": "The specific technology or strategic area involved", "text": "...", "sourceRefs": [1] }
+  ],
+  "patterns": [
+    { "scope": "competitor-only", "title": "Short title", "text": "Pattern observed only among competitors (technology or strategic)", "sourceRefs": [2] },
+    { "scope": "crossover", "title": "Short title", "text": "Pattern spanning competitors AND PSI/ETS", "sourceRefs": [3] }
+  ],
+  "recommendations": [
+    { "for": "PSI|ETS|Both", "type": "differentiator|disruptor|defensive", "text": "Specific actionable move", "sourceRefs": [1] }
+  ],
+  "questionAnswers": ${questions ? '[{ "question": "...", "answer": "...", "sourceRefs": [1] }]' : '[]'},
+  "sources": [{ "id": 1, "title": "...", "url": "https://...", "domain": "...", "type": "...", "credibility": "high|medium|low", "credibilityReason": "...", "usedFor": ["tag"], "publishedDate": "Month Year or null" }]
+}
+
+PSI and ETS must be the first two rows of all matrices. Include 4+ techOpportunities, 3+ disruptionScenarios, 3+ competitor-only patterns, 3+ crossover patterns. Limit to 8 sources. Keep all text fields concise (1-2 sentences). Return only the JSON.`;
+  }
+
+  function render(d, market) {
+    const sources = d.sources || [];
+    document.getElementById('resultTitle').textContent = 'PSI & ETS — technology competitive brief';
+    document.getElementById('resultSub').textContent = market + ' · ' + new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    document.getElementById('entityCards').innerHTML = `
+      <div class="entity-card psi">
+        <div class="entity-label">PSI Exams</div>
+        <div class="entity-name">Professional Testing & Credentialing</div>
+        <div class="entity-desc">${d.psiOverview}</div>
+      </div>
+      <div class="entity-card ets">
+        <div class="entity-label">ETS · Parent company</div>
+        <div class="entity-name">Educational Assessment</div>
+        <div class="entity-desc">${d.etsOverview}</div>
+      </div>`;
+    document.getElementById('overviewText').textContent = d.marketOverview;
+
+    function readinessBadge(r) {
+      const cls = r==='high'?'readiness-high':r==='medium'?'readiness-medium':'readiness-low';
+      const label = r==='high'?'High disruption readiness':r==='medium'?'Medium disruption readiness':'Low disruption readiness';
+      return `<span class="readiness-badge ${cls}">${label}</span>`;
+    }
+
+    function profileHTML(p, cls) {
+      const techKey = p.techStrengths ? 'techStrengths' : 'strengths';
+      const gapKey = p.techGaps ? 'techGaps' : 'weaknesses';
+      const strengths = (p[techKey] || []).map(s=>`<span class="tag str">${s}</span>`).join('');
+      const gaps = (p[gapKey] || []).map(w=>`<span class="tag weak">${w}</span>`).join('');
+      return `<div class="profile-card ${cls}">
+        <div class="profile-name">${p.name}${citeHTML(p.sourceRefs,sources)}</div>
+        <div class="profile-tagline">${p.tagline||''}</div>
+        <div class="profile-row"><span class="profile-label">Segments</span><span class="profile-val">${p.segment||''}</span></div>
+        ${p.positioning ? `<div class="profile-row"><span class="profile-label">Positioning</span><span class="profile-val">${p.positioning}</span></div>` : ''}
+        ${p.pricing ? `<div class="profile-row"><span class="profile-label">Pricing</span><span class="profile-val">${p.pricing}</span></div>` : ''}
+        <div class="profile-row" style="flex-direction:column;gap:4px;"><span class="profile-label">Tech strengths</span><div class="tag-list">${strengths}</div></div>
+        <div class="profile-row" style="flex-direction:column;gap:4px;margin-top:4px;"><span class="profile-label">Tech gaps</span><div class="tag-list">${gaps}</div></div>
+        ${p.disruptionReadiness ? readinessBadge(p.disruptionReadiness) : ''}
+      </div>`;
+    }
+    document.getElementById('dualGrid').innerHTML = profileHTML(d.psiProfile,'psi-card') + profileHTML(d.etsProfile,'ets-card');
+
+    document.getElementById('compGrid').innerHTML = (d.competitors||[]).map(c => {
+      const strengths = (c.techStrengths||c.strengths||[]).map(s=>`<span class="tag str">${s}</span>`).join('');
+      const gaps = (c.techGaps||c.weaknesses||[]).map(w=>`<span class="tag weak">${w}</span>`).join('');
+      return `<div class="comp-card">
+        <div class="comp-name">${c.name}${citeHTML(c.sourceRefs,sources)}</div>
+        <div class="comp-tagline">${c.tagline||''}</div>
+        <div class="comp-row"><span class="comp-label">Segment</span><span class="comp-val">${c.segment||''}</span></div>
+        ${c.pricing ? `<div class="comp-row"><span class="comp-label">Pricing</span><span class="comp-val">${c.pricing}</span></div>` : ''}
+        ${c.gtm ? `<div class="comp-row"><span class="comp-label">GTM</span><span class="comp-val">${c.gtm}</span></div>` : ''}
+        ${c.keyTech ? `<div class="comp-row"><span class="comp-label">Key tech</span><span class="comp-val">${c.keyTech}</span></div>` : ''}
+        ${c.sentiment ? `<div class="comp-row"><span class="comp-label">Sentiment</span><span class="comp-val">${c.sentiment}</span></div>` : ''}
+        <div class="comp-row" style="flex-direction:column;gap:4px;"><span class="comp-label">Strengths</span><div class="tag-list">${strengths}</div></div>
+        <div class="comp-row" style="flex-direction:column;gap:4px;margin-top:4px;"><span class="comp-label">Tech gaps</span><div class="tag-list">${gaps}</div></div>
+      </div>`;
+    }).join('');
+
+    function renderMatrix(data, wrapperId) {
+      if (!data) return;
+      const { dimensions, rows } = data;
+      let tbl = `<table class="matrix-table"><thead><tr><th>Company</th>${dimensions.map(d=>`<th>${d}</th>`).join('')}<th>Avg</th></tr></thead><tbody>`;
+      rows.forEach((row, idx) => {
+        const avg = (row.scores.reduce((a,b)=>a+b,0)/row.scores.length).toFixed(1);
+        const tier = row.tier || (parseFloat(avg)>=4?'high':parseFloat(avg)>=2.5?'medium':'low');
+        const pc = tier==='high'?'pill-h':tier==='medium'?'pill-m':'pill-l';
+        const rc = row.entity==='psi'?'row-psi':row.entity==='ets'?'row-ets':'';
+        const divClass = idx===2?'row-divider':'';
+        tbl += `<tr class="${rc} ${divClass}"><td>${row.competitor}</td>${row.scores.map(s=>`<td>${pips(s)}</td>`).join('')}<td><span class="pill ${pc}">${avg}</span></td></tr>`;
+      });
+      document.getElementById(wrapperId).innerHTML = tbl + '</tbody></table>';
+    }
+
+    // Tech capability matrix
+    renderMatrix(d.techMatrix || d.matrix, 'matrixWrap');
+
+    // Strategic matrix — show section only if data returned
+    const stratMatrixSection = document.getElementById('stratMatrixSection');
+    if (d.strategicMatrix && d.strategicMatrix.rows?.length) {
+      stratMatrixSection.style.display = 'block';
+      renderMatrix(d.strategicMatrix, 'stratMatrixWrap');
+    } else {
+      stratMatrixSection.style.display = 'none';
+    }
+
+    // Tech opportunities
+    const oppGrid = document.getElementById('techOppGrid');
+    if (d.techOpportunities?.length) {
+      const matCls = m => m==='emerging'?'badge-emerging':m==='growing'?'badge-growing':'badge-mature';
+      const distCls = d => d==='high'?'badge-disrupt-high':d==='medium'?'badge-disrupt-med':'badge-disrupt-low';
+      const timeCls = t => t==='now'?'badge-now':t==='1-2 years'?'badge-near':'badge-far';
+      const timeLabel = t => t==='now'?'Act now':t==='1-2 years'?'1–2 yr horizon':'3–5 yr horizon';
+      oppGrid.innerHTML = d.techOpportunities.map(o => `
+        <div class="tech-opp-card">
+          <div class="tech-opp-name">${o.technology}${citeHTML(o.sourceRefs,sources)}</div>
+          <div class="tech-opp-meta">
+            <span class="tech-badge ${matCls(o.maturity)}">${o.maturity}</span>
+            <span class="tech-badge ${distCls(o.disruptionPotential)}">${o.disruptionPotential} disruption</span>
+            <span class="tech-badge ${timeCls(o.timeHorizon)}">${timeLabel(o.timeHorizon)}</span>
+          </div>
+          <div class="tech-opp-advantage">${o.psiAdvantage}</div>
+          <div class="tech-opp-adoption">Competitor adoption: ${o.competitorAdoption||'unknown'}</div>
+        </div>`).join('');
+    } else {
+      oppGrid.innerHTML = '<div style="font-family:Arial,sans-serif;font-size:13px;color:var(--text3);">No technology opportunities returned.</div>';
+    }
+
+    // Disruption scenarios
+    const disruptionList = document.getElementById('disruptionList');
+    if (d.disruptionScenarios?.length) {
+      disruptionList.innerHTML = d.disruptionScenarios.map(s => `
+        <div class="disruption-card">
+          <div class="disruption-title">${s.scenario}${citeHTML(s.sourceRefs,sources)}</div>
+          <div class="disruption-desc">${s.description}</div>
+          <div class="disruption-caps">${(s.requiredCapabilities||[]).map(c=>`<span class="disruption-cap">${c}</span>`).join('')}</div>
+          <div class="disruption-signal-row"><strong>Signal to watch:</strong> ${s.signalToWatch}</div>
+        </div>`).join('');
+    } else {
+      disruptionList.innerHTML = '<div style="font-family:Arial,sans-serif;font-size:13px;color:var(--text3);">No disruption scenarios returned.</div>';
+    }
+
+    document.getElementById('insightList').innerHTML = (d.insights||[]).map(i => `
+      <div class="insight-item ${i.type}">
+        <div class="insight-type">${i.type} · ${i.appliesTo||''}${i.techAngle ? ' · ' + i.techAngle : ''}</div>
+        <div class="insight-text">${i.text}${citeHTML(i.sourceRefs,sources)}</div>
+      </div>`).join('');
+
+    document.getElementById('patternsList').innerHTML = (d.patterns||[]).map(p => `
+      <div class="pattern-item ${p.scope==='competitor-only'?'comp-only':'crossover'}">
+        <div class="pattern-label">${p.scope==='competitor-only'?'⬡ Competitor-only pattern':'◈ Crossover pattern — competitors + PSI/ETS'}</div>
+        <div class="pattern-title">${p.title}${citeHTML(p.sourceRefs,sources)}</div>
+        <div class="pattern-text">${p.text}</div>
+      </div>`).join('');
+
+    document.getElementById('stratGrid').innerHTML = (d.recommendations||[]).map((r,i) => {
+      const fc = r.for==='PSI'?'psi-for':r.for==='ETS'?'ets-for':'both-for';
+      const typeCls = r.type==='disruptor'?'rec-disruptor':r.type==='defensive'?'rec-defensive':'rec-differentiator';
+      const typeLabel = r.type||'differentiator';
+      return `<div class="strat-card">
+        <div class="strat-for ${fc}">${r.for}</div>
+        <span class="rec-type ${typeCls}">${typeLabel}</span>
+        <div class="strat-num">0${i+1}</div>
+        <div class="strat-text">${r.text}${citeHTML(r.sourceRefs,sources)}</div>
+      </div>`;
+    }).join('');
+
+    if (d.questionAnswers?.length) {
+      document.getElementById('qaSection').style.display = 'block';
+      document.getElementById('qaAnswers').innerHTML = d.questionAnswers.map(qa => `
+        <div class="qa-item">
+          <div class="qa-q">${qa.question}</div>
+          <div class="qa-a">${qa.answer}${citeHTML(qa.sourceRefs,sources)}</div>
+        </div>`).join('');
+    }
+
+    document.getElementById('sourceList').innerHTML = sources.map(s => {
+      const sc = credScore(s.credibility);
+      const stars = [1,2,3].map(n=>`<span class="cred-star ${n<=sc?'lit':''}"></span>`).join('');
+      return `<div class="source-item" id="source-${s.id}">
+        <div class="source-cred-col">
+          <span class="cred-badge ${credCls(s.credibility)}">${credLbl(s.credibility)}</span>
+          <div class="cred-stars">${stars}</div>
+        </div>
+        <div class="source-body">
+          <div class="source-title">[${s.id}] ${s.title}</div>
+          <div class="source-meta">${s.domain}${s.publishedDate?' · '+s.publishedDate:''} · ${s.type}</div>
+          <div class="source-why">${s.credibilityReason}</div>
+          <div class="source-tags">${(s.usedFor||[]).map(t=>`<span class="source-tag">${t}</span>`).join('')}</div>
+          <a class="source-link" href="${s.url}" target="_blank">${s.url}</a>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('results').classList.add('visible');
+    document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  function exportTxt() {
+    if (!analysisData) return;
+    const d = analysisData;
+    let t = `PSI & ETS TECHNOLOGY COMPETITIVE ANALYSIS\n${'='.repeat(50)}\n\nPSI: ${d.psiOverview}\nETS: ${d.etsOverview}\n\nMARKET OVERVIEW\n${d.marketOverview}\n\n`;
+    t += `PSI TECH PROFILE\n${'-'.repeat(30)}\nTagline: ${d.psiProfile.tagline}\nSegments: ${d.psiProfile.segment}\n${d.psiProfile.positioning?'Positioning: '+d.psiProfile.positioning+'\n':''}${d.psiProfile.pricing?'Pricing: '+d.psiProfile.pricing+'\n':''}Tech Strengths: ${(d.psiProfile.techStrengths||d.psiProfile.strengths||[]).join(', ')}\nTech Gaps: ${(d.psiProfile.techGaps||d.psiProfile.weaknesses||[]).join(', ')}\nDisruption Readiness: ${d.psiProfile.disruptionReadiness||'n/a'}\n\n`;
+    t += `ETS TECH PROFILE\n${'-'.repeat(30)}\nTagline: ${d.etsProfile.tagline}\nSegments: ${d.etsProfile.segment}\n${d.etsProfile.positioning?'Positioning: '+d.etsProfile.positioning+'\n':''}${d.etsProfile.pricing?'Pricing: '+d.etsProfile.pricing+'\n':''}Tech Strengths: ${(d.etsProfile.techStrengths||d.etsProfile.strengths||[]).join(', ')}\nTech Gaps: ${(d.etsProfile.techGaps||d.etsProfile.weaknesses||[]).join(', ')}\nDisruption Readiness: ${d.etsProfile.disruptionReadiness||'n/a'}\n\n`;
+    t += `COMPETITORS\n${'-'.repeat(30)}\n`;
+    (d.competitors||[]).forEach(c => { t += `\n${c.name} — ${c.tagline}\n  Key Tech: ${c.keyTech||'n/a'}\n${c.pricing?'  Pricing: '+c.pricing+'\n':''}${c.gtm?'  GTM: '+c.gtm+'\n':''}${c.sentiment?'  Sentiment: '+c.sentiment+'\n':''}  Tech Strengths: ${(c.techStrengths||c.strengths||[]).join(', ')}\n  Tech Gaps: ${(c.techGaps||c.weaknesses||[]).join(', ')}\n`; });
+    t += `\nTECHNOLOGY OPPORTUNITIES\n${'-'.repeat(30)}\n`;
+    (d.techOpportunities||[]).forEach((o,i) => { t += `\n${i+1}. ${o.technology} [${o.maturity} | ${o.disruptionPotential} disruption | ${o.timeHorizon}]\n   ${o.psiAdvantage}\n   Competitor adoption: ${o.competitorAdoption}\n`; });
+    t += `\nDISRUPTION SCENARIOS\n${'-'.repeat(30)}\n`;
+    (d.disruptionScenarios||[]).forEach((s,i) => { t += `\n${i+1}. ${s.scenario}\n   ${s.description}\n   Capabilities needed: ${(s.requiredCapabilities||[]).join(', ')}\n   Signal to watch: ${s.signalToWatch}\n`; });
+    t += `\nSTRATEGIC INSIGHTS\n${'-'.repeat(30)}\n`;
+    (d.insights||[]).forEach(i => { t += `\n[${i.type.toUpperCase()} · ${i.appliesTo}${i.techAngle?' · '+i.techAngle:''}] ${i.text}\n`; });
+    t += `\nPATTERN CALLOUTS\n${'-'.repeat(30)}\n`;
+    (d.patterns||[]).forEach(p => { t += `\n[${p.scope==='competitor-only'?'COMPETITOR-ONLY':'CROSSOVER'}] ${p.title}\n${p.text}\n`; });
+    t += `\nRECOMMENDATIONS\n${'-'.repeat(30)}\n`;
+    (d.recommendations||[]).forEach((r,i) => { t += `${i+1}. [${r.for}][${r.type||'differentiator'}] ${r.text}\n`; });
+    if (d.questionAnswers?.length) { t += `\nSTRATEGIC QUESTIONS\n${'-'.repeat(30)}\n`; d.questionAnswers.forEach(qa => { t += `\nQ: ${qa.question}\nA: ${qa.answer}\n`; }); }
+    t += `\nSOURCES\n${'-'.repeat(30)}\n`;
+    (d.sources||[]).forEach(s => { t += `\n[${s.id}] ${s.title}\n  ${s.url}\n  Credibility: ${s.credibility.toUpperCase()} — ${s.credibilityReason}\n`; });
+    const blob = new Blob([t],{type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='psi-ets-tech-competitive-analysis.txt'; a.click();
+    URL.revokeObjectURL(url);
+  }
+</script>
+</body>
+</html>
