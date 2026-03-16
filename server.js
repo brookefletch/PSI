@@ -33,7 +33,8 @@ app.post("/api/analyze", async (req, res) => {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
       res.status(200);
-      Readable.fromWeb(upstream.body).pipe(res);
+      const body = upstream.body;
+      (typeof body.pipe === 'function' ? body : Readable.fromWeb(body)).pipe(res);
     } else {
       const data = await upstream.json();
       if (!upstream.ok) {
